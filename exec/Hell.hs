@@ -1,17 +1,3 @@
---
--- Welcome to Hell
---
--- Haskell as a scripting language!
---
--- Special thanks to Stephanie Weirich, whose type-safe typechecker
--- this is built upon, and for the Type.Reflection module, which has
--- made some of this more ergonomic.
-
-{-# LANGUAGE ExistentialQuantification, TypeApplications, BlockArguments, NamedFieldPuns #-}
-{-# LANGUAGE GADTs, PolyKinds, TupleSections, StandaloneDeriving, Rank2Types, FlexibleContexts #-}
-{-# LANGUAGE ViewPatterns, LambdaCase, ScopedTypeVariables, PatternSynonyms, TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings, MultiWayIf, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-
 module Main (main) where
 
 -- All modules tend to be imported qualified by their last component,
@@ -49,6 +35,7 @@ import qualified System.IO as IO
 import qualified UnliftIO.Async as Async
 import qualified System.Directory as Dir
 import qualified Options.Applicative as Options
+import Control.Monad
 
 -- Things used within the host language.
 
@@ -367,23 +354,23 @@ lookupVar v (Cons (Tuple ss) ty e)
       Type.App (Type.App tup x) y
        | Just Type.HRefl <- Type.eqTypeRep tup (typeRep @(,)) ->
           case i of
-            0 -> pure $ Typed x $ ZVar \(a,_) -> a
-            1 -> pure $ Typed y $ ZVar \(_,b) -> b
+            0 -> pure $ Typed x $ ZVar $ \(a,_) -> a
+            1 -> pure $ Typed y $ ZVar $ \(_,b) -> b
             _ -> Left TupleTypeMismatch
       Type.App (Type.App (Type.App tup x) y) z
        | Just Type.HRefl <- Type.eqTypeRep tup (typeRep @(,,)) ->
           case i of
-            0 -> pure $ Typed x $ ZVar \(a,_,_) -> a
-            1 -> pure $ Typed y $ ZVar \(_,b,_) -> b
-            2 -> pure $ Typed z $ ZVar \(_,_,c) -> c
+            0 -> pure $ Typed x $ ZVar $ \(a,_,_) -> a
+            1 -> pure $ Typed y $ ZVar $ \(_,b,_) -> b
+            2 -> pure $ Typed z $ ZVar $ \(_,_,c) -> c
             _ -> Left TupleTypeMismatch
       Type.App (Type.App (Type.App (Type.App tup x) y) z) z'
        | Just Type.HRefl <- Type.eqTypeRep tup (typeRep @(,,,)) ->
           case i of
-            0 -> pure $ Typed x $ ZVar \(a,_,_,_) -> a
-            1 -> pure $ Typed y $ ZVar \(_,b,_,_) -> b
-            2 -> pure $ Typed z $ ZVar \(_,_,c,_) -> c
-            3 -> pure $ Typed z' $ ZVar \(_,_,_,d) -> d
+            0 -> pure $ Typed x $ ZVar $ \(a,_,_,_) -> a
+            1 -> pure $ Typed y $ ZVar $ \(_,b,_,_) -> b
+            2 -> pure $ Typed z $ ZVar $ \(_,_,c,_) -> c
+            3 -> pure $ Typed z' $ ZVar $ \(_,_,_,d) -> d
             _ -> Left TupleTypeMismatch
       _ -> Left TupleTypeTooBig
   | otherwise = do
@@ -632,11 +619,11 @@ anyCycles =
 stronglyConnected :: [(String, HSE.Exp HSE.SrcSpanInfo)] -> [Graph.SCC (String, HSE.Exp HSE.SrcSpanInfo)]
 stronglyConnected =
   Graph.stronglyConnComp .
-  map \thing@(name, e) -> (thing, name, freeVariables e)
+  map (\thing@(name, e) -> (thing, name, freeVariables e))
 
 anyCyclesSpec :: Spec
 anyCyclesSpec = do
- it "anyCycles" do
+ it "anyCycles" $ do
    shouldBe (try [("foo","\\z -> x * Z.y"), ("bar","\\z -> Main.bar * Z.y")]) True
    shouldBe (try [("foo","\\z -> Main.bar * Z.y"), ("bar","\\z -> Main.foo * Z.y")]) True
    shouldBe (try [("foo","\\z -> x * Z.y"), ("bar","\\z -> Main.mu * Z.y")]) False
@@ -1114,16 +1101,16 @@ elaborate = fmap getEqualities . flip runStateT empty . flip runReaderT mempty .
       pure $ ULam ty binding mstarType body'
     UForall () types forall' uniqs polyRep _ -> do
       -- Generate variables for each unique.
-      vars <- for uniqs \uniq -> do
+      vars <- for uniqs $ \uniq -> do
         v <- freshIMetaVar
         pure (uniq, v)
       -- Fill in the polyRep with the metavars.
-      monoType <- for polyRep \uniq ->
+      monoType <- for polyRep $ \uniq ->
         case List.lookup uniq vars of
           Nothing -> lift $ lift $ Left $ BadInstantiationBug
           Just var -> pure var
       -- Order of types is position-dependent, apply the ones we have.
-      for_ (zip vars types) \((_uniq, var), someTypeRep) ->
+      for_ (zip vars types) $ \((_uniq, var), someTypeRep) ->
         equal (fromSomeStarType someTypeRep) (IVar var)
       -- Done!
       pure $ UForall monoType types forall' uniqs polyRep (map (IVar . snd) vars)
@@ -1131,7 +1118,7 @@ elaborate = fmap getEqualities . flip runStateT empty . flip runReaderT mempty .
 bindingVars :: IRep IMetaVar -> Binding -> StateT Elaborate (Either ElaborateError) (Map String (IRep IMetaVar))
 bindingVars irep (Singleton name) = pure $ Map.singleton name irep
 bindingVars tupleVar (Tuple names) = do
-  varsTypes <- for names \name -> fmap (name, ) (fmap IVar freshIMetaVar)
+  varsTypes <- for names $ \name -> fmap (name, ) (fmap IVar freshIMetaVar)
   -- it's a left-fold:
   -- IApp (IApp (ICon (,)) x) y
   cons <- makeCons
@@ -1145,12 +1132,12 @@ bindingVars tupleVar (Tuple names) = do
          _ -> lift $ Left $ UnsupportedTupleSize
 
 equal :: MonadState Elaborate m => IRep IMetaVar -> IRep IMetaVar -> m ()
-equal x y = modify \elaborate' -> elaborate' { equalities = equalities elaborate' <> Set.singleton (Equality x y) }
+equal x y = modify $ \elaborate' -> elaborate' { equalities = equalities elaborate' <> Set.singleton (Equality x y) }
 
 freshIMetaVar :: MonadState Elaborate m => m IMetaVar
 freshIMetaVar = do
   Elaborate{counter} <- get
-  modify \elaborate' -> elaborate' { counter = counter + 1 }
+  modify $ \elaborate' -> elaborate' { counter = counter + 1 }
   pure $ IMetaVar0 counter
 
 --------------------------------------------------------------------------------
@@ -1230,7 +1217,7 @@ parseFile filePath = do
 -- This should be quite efficient because it's essentially a pointer
 -- increase. It leaves the \n so that line numbers are in tact.
 dropShebang :: Text -> Text
-dropShebang t = Maybe.fromMaybe t do
+dropShebang t = Maybe.fromMaybe t $ do
   rest <- Text.stripPrefix "#!" t
   pure $ Text.dropWhile (/= '\n') rest
 
