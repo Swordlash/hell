@@ -4,6 +4,12 @@ module Main (main) where
 -- e.g. 'Data.Graph' becomes 'Graph', and are then exposed to the Hell
 -- guest language as such.
 
+import Language.Hell.Parser
+import Language.Hell.Term
+import Language.Hell.Var
+import Language.Hell.Evaluate
+
+
 import Data.Void
 import Data.Foldable
 import qualified Language.Haskell.TH as TH
@@ -158,49 +164,7 @@ dispatch (Exec string) = do
                                      in action
                                    Nothing -> error $ "Type isn't IO (), but: " ++ show t
 
---------------------------------------------------------------------------------
--- Get declarations from the module
 
-parseModule :: HSE.Module HSE.SrcSpanInfo -> HSE.ParseResult [(String, HSE.Exp HSE.SrcSpanInfo)]
-parseModule (HSE.Module _ Nothing [] [] decls) =
-  traverse parseDecl decls
-  where
-    parseDecl (HSE.PatBind _ (HSE.PVar _ (HSE.Ident _ string)) (HSE.UnGuardedRhs _ exp') Nothing) =
-          pure (string, exp')
-    parseDecl _ = fail "Can't parse that!"
-parseModule _ = fail "Module headers aren't supported."
-
---------------------------------------------------------------------------------
--- Typed AST support
---
--- We define a well-typed, well-indexed GADT AST which can be evaluated directly.
-
-data Term g t where
-  Var :: Var g t -> Term g t
-  Lam :: TypeRep (a :: Type) -> Term (g, a) b -> Term g (a -> b)
-  App :: Term g (s -> t) -> Term g s -> Term g t
-  Lit :: a -> Term g a
-
-data Var g t where
-  ZVar :: (t -> a) -> Var (h, t) a
-  SVar :: Var h t -> Var (h, s) t
-
---------------------------------------------------------------------------------
--- Evaluator
---
-
--- This is the entire evaluator. Type-safe and total.
-eval :: env -> Term env t -> t
-eval env (Var v) = lookp v env
-eval env (Lam _ e) = \x -> eval (env, x) e
-eval env (App e1 e2) = (eval env e1) (eval env e2)
-eval _env (Lit a) = a
-
--- Type-safe, total lookup. The final @slot@ determines which slot of
--- a given tuple to pick out.
-lookp :: Var env t -> env -> t
-lookp (ZVar slot) (_, x) = slot x
-lookp (SVar v) (env, _) = lookp v env
 
 --------------------------------------------------------------------------------
 -- The "untyped" AST
