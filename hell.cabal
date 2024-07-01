@@ -52,6 +52,7 @@ library
   exposed-modules:
     Language.Hell.Desugar
     Language.Hell.Evaluate
+    Language.Hell.Inference
     Language.Hell.IRep
     Language.Hell.Parser
     Language.Hell.Term
