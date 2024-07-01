@@ -43,6 +43,7 @@ library
     Language.Hell.IRep
     Language.Hell.Parser
     Language.Hell.Term
+    Language.Hell.Typecheck
     Language.Hell.UTerm
     Language.Hell.Var
 
