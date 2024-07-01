@@ -2,8 +2,6 @@ module Language.Hell.TH where
 
 import qualified Control.Concurrent as Concurrent
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State.Strict
 import Data.Bifunctor
 import qualified Data.Bool as Bool
 import Data.ByteString (ByteString)
@@ -12,30 +10,20 @@ import qualified Data.ByteString.Builder as ByteString hiding (writeFile)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Either as Either
 import qualified Data.Eq as Eq
-import Data.Foldable
 import qualified Data.Function as Function
-import qualified Data.Graph as Graph
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Ord as Ord
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import Data.Traversable
-import Data.Void
-import GHC.Types
-import qualified Language.Haskell.Exts as HSE
 import Language.Haskell.TH (Q)
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as TH
-import Language.Hell.Evaluate
 import Language.Hell.IRep
-import Language.Hell.Parser
-import Language.Hell.Term
 import Language.Hell.Typecheck
 import Language.Hell.UTerm
 import qualified System.Directory as Dir
@@ -45,8 +33,7 @@ import qualified System.IO as IO
 import System.Process.Typed as Process
 import qualified System.Timeout as Timeout
 import qualified Text.Show as Show
-import Type.Reflection (SomeTypeRep (..), typeRep, typeRepKind, pattern TypeRep)
-import qualified Type.Reflection as Type
+import Type.Reflection (SomeTypeRep (..), typeRep, pattern TypeRep)
 import qualified UnliftIO.Async as Async
 
 --------------------------------------------------------------------------------
