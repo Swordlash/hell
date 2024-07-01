@@ -3,7 +3,6 @@ module Language.Hell.Evaluate where
 import Language.Hell.Term
 import Language.Hell.Var
 
-
 --------------------------------------------------------------------------------
 -- Evaluator
 --

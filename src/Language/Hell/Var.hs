@@ -1,6 +1,5 @@
 module Language.Hell.Var where
 
-
 data Var g t where
   ZVar :: (t -> a) -> Var (h, t) a
   SVar :: Var h t -> Var (h, s) t
