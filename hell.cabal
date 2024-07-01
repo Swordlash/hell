@@ -36,12 +36,14 @@ library
   import: commons
 
   build-depends:
-    base, haskell-src-exts
+    base, ghc-prim, haskell-src-exts, template-haskell, bytestring, text, containers, mtl
 
   exposed-modules:
     Language.Hell.Evaluate
+    Language.Hell.IRep
     Language.Hell.Parser
     Language.Hell.Term
+    Language.Hell.UTerm
     Language.Hell.Var
 
   default-language: Haskell2010
