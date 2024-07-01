@@ -28,8 +28,7 @@ common commons
     TemplateHaskell,
     OverloadedStrings, 
     MultiWayIf, 
-    DeriveTraversable,
-    TypeAbstractions
+    DeriveTraversable
 
   ghc-options: -Wall -Wno-missing-pattern-synonym-signatures -threaded
 
